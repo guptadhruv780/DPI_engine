@@ -10,6 +10,9 @@ from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile, W
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from dpi_engine import DPIEngine, country_code_to_flag
 
