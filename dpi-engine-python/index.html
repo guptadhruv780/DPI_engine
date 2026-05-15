@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DPI ENGINE Dashboard</title>
+  <style>
+    :root {
+      --bg: #0b0f17;
+      --panel: #121a26;
+      --panel-2: #0f1520;
+      --line: #1d2a3f;
+      --text: #e6f1ff;
+      --muted: #8ca0bf;
+      --green: #20ffb0;
+      --red: #ff4b6a;
+      --cyan: #35d4ff;
+      --yellow: #ffd166;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #0f1827, var(--bg));
+      color: var(--text);
+      font-family: "Consolas", "Menlo", monospace;
+    }
+    .container { max-width: 1300px; margin: 0 auto; padding: 16px; }
+    .header {
+      display: flex; gap: 12px; align-items: center; justify-content: space-between;
+      background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px;
+    }
+    .title { font-size: 24px; letter-spacing: 2px; color: var(--cyan); text-shadow: 0 0 8px #146f85; }
+    .header-right { display: flex; gap: 16px; align-items: center; }
+    .dot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; margin-right: 8px; }
+    .dot.live { background: var(--green); box-shadow: 0 0 10px var(--green); animation: pulse 1s infinite; }
+    .dot.off { background: #626d7f; }
+    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.4); } }
+    .badge { border: 1px solid var(--line); background: var(--panel-2); border-radius: 6px; padding: 4px 8px; font-size: 12px; }
+    .badge.live { color: var(--green); }
+    .badge.disconnected { color: var(--red); }
+    .grid { display: grid; gap: 14px; margin-top: 14px; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+    h2 { margin: 0 0 10px; font-size: 15px; color: var(--cyan); text-transform: uppercase; }
+    .upload-zone {
+      border: 2px dashed #254066; border-radius: 10px; padding: 18px; text-align: center;
+      color: var(--muted); cursor: pointer; transition: 0.2s;
+    }
+    .upload-zone.drag { border-color: var(--green); color: var(--green); background: rgba(32,255,176,0.06); }
+    button, select, input {
+      background: #111a28; border: 1px solid #2a4366; color: var(--text);
+      border-radius: 6px; padding: 8px 10px; font-family: inherit;
+    }
+    button { cursor: pointer; }
+    button:hover { border-color: var(--cyan); }
+    .progress { height: 10px; background: #1b2638; border-radius: 999px; overflow: hidden; margin-top: 12px; }
+    .progress > div { height: 100%; width: 0%; background: linear-gradient(90deg, #00c2ff, #20ffb0); transition: width .2s; }
+    .stats-cards { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+    .card { background: var(--panel-2); border: 1px solid #1e304a; border-radius: 8px; padding: 12px; }
+    .card .n { font-size: 28px; color: var(--green); }
+    .card .l { color: var(--muted); font-size: 12px; }
+    .table-wrap { max-height: 320px; overflow: auto; border: 1px solid #22334d; border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 8px; border-bottom: 1px solid #1d2b42; text-align: left; }
+    tr.allowed { color: #d9ffe8; background: rgba(32,255,176,0.04); }
+    tr.blocked { color: #ffd6dc; background: rgba(255,75,106,0.10); }
+    tr.new-row { animation: slideDown .25s ease-out; }
+    @keyframes slideDown { from { transform: translateY(-10px); opacity: .2; } to { transform: translateY(0); opacity: 1; } }
+    .bar-row { display: grid; grid-template-columns: 130px 1fr 55px; gap: 10px; align-items: center; margin: 8px 0; }
+    .bar-bg { height: 15px; background: #1b2940; border-radius: 999px; overflow: hidden; }
+    .bar-fill { height: 100%; width: 0%; transition: width .8s ease; }
+    .rules-inputs { display: grid; grid-template-columns: 140px 1fr 120px; gap: 8px; }
+    .rule-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .rule-pill { border: 1px solid #2f4568; background: #101b2a; border-radius: 999px; padding: 5px 10px; font-size: 12px; }
+    .alerts .alert { border: 1px solid #5a2030; background: rgba(255,75,106,0.1); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+    .domains .item { display: flex; gap: 8px; align-items: center; border-bottom: 1px solid #1d2b42; padding: 6px 0; }
+    .app-badge { border: 1px solid #2c5070; border-radius: 999px; padding: 2px 8px; font-size: 11px; color: var(--yellow); }
+    .row { display: grid; gap: 14px; grid-template-columns: 1.8fr 1fr; }
+    .auth-overlay {
+      position: fixed; inset: 0; background: rgba(5,10,20,0.92);
+      display: flex; align-items: center; justify-content: center; z-index: 9999;
+    }
+    .auth-card {
+      width: min(420px, 92vw); background: var(--panel); border: 1px solid #2a4366; border-radius: 12px; padding: 16px;
+      box-shadow: 0 0 35px rgba(53,212,255,0.15);
+    }
+    .auth-card h3 { margin: 0 0 8px; color: var(--cyan); }
+    .auth-card p { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+    .auth-field { margin-bottom: 10px; }
+    .auth-field input { width: 100%; }
+    .auth-error { color: var(--red); font-size: 12px; min-height: 16px; }
+    .hidden { display: none !important; }
+    @media (max-width: 980px) {
+      .row, .stats-cards, .rules-inputs { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-card">
+      <h3>IT HEAD ACCESS</h3>
+      <p>Admin login required to access DPI dashboard and controls.</p>
+      <div class="auth-field"><input id="adminUser" placeholder="Username" value="ithead" /></div>
+      <div class="auth-field"><input id="adminPass" placeholder="Password" type="password" /></div>
+      <button id="loginBtn">Login</button>
+      <div id="authError" class="auth-error"></div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="header">
+      <div class="title">DPI ENGINE</div>
+      <div class="header-right">
+        <div id="whoami" class="badge">LOCKED</div>
+        <div><span id="procDot" class="dot off"></span><span id="procState">IDLE</span></div>
+        <div>Total: <span id="totalCount">0</span></div>
+        <div style="color:var(--red)">Dropped: <span id="dropCount">0</span></div>
+        <div id="wsBadge" class="badge disconnected">DISCONNECTED</div>
+        <button id="logoutBtn">Logout</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="panel">
+        <h2>Upload Panel</h2>
+        <div id="dropZone" class="upload-zone">
+          Drag and drop .pcap file here or click to choose.
+          <input id="fileInput" type="file" accept=".pcap" style="display:none;" />
+        </div>
+        <div style="margin-top:10px;">
+          <button id="pickBtn">Choose File</button>
+          <span id="uploadMsg" style="margin-left:8px;color:var(--muted);"></span>
+        </div>
+        <div class="progress"><div id="progressBar"></div></div>
+      </section>
+
+      <section class="panel">
+        <h2>Live Packet Feed</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Time</th><th>Src IP</th><th>Dst IP</th><th>Proto</th><th>App</th><th>SNI/Domain</th><th>Flag</th><th>Status</th></tr>
+            </thead>
+            <tbody id="packetBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Stats Dashboard</h2>
+        <div class="stats-cards">
+          <div class="card"><div id="cTotal" class="n">0</div><div class="l">Total Packets</div></div>
+          <div class="card"><div id="cForwarded" class="n">0</div><div class="l">Forwarded</div></div>
+          <div class="card"><div id="cDropped" class="n" style="color:var(--red)">0</div><div class="l">Dropped</div></div>
+          <div class="card"><div id="cFlows" class="n" style="color:var(--cyan)">0</div><div class="l">Active Flows</div></div>
+        </div>
+      </section>
+
+      <div class="row">
+        <section class="panel">
+          <h2>App Traffic Chart</h2>
+          <div id="chartWrap"></div>
+        </section>
+        <section class="panel">
+          <h2>Block Rules</h2>
+          <div class="rules-inputs">
+            <select id="ruleType"><option value="ip">IP</option><option value="domain">Domain</option><option value="app">App</option></select>
+            <input id="ruleValue" placeholder="Enter rule value" />
+            <button id="addRuleBtn">Add Rule</button>
+          </div>
+          <div id="ruleList" class="rule-list"></div>
+        </section>
+      </div>
+
+      <div class="row">
+        <section class="panel alerts">
+          <h2>Anomaly Alerts</h2>
+          <div id="alertsWrap">✅ No anomalies detected</div>
+        </section>
+        <section class="panel domains">
+          <h2>Detected Domains List</h2>
+          <div id="domainsWrap"></div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <h2>Export</h2>
+        <button id="exportBtn">Download CSV Report</button>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const API = "http://localhost:8000";
+    const state = { packets: [], stats: null, token: localStorage.getItem("dpi_token") || "", ws: null, uploadBound: false };
+    function authHeaders(extra = {}) {
+      return { ...extra, Authorization: `Bearer ${state.token}` };
+    }
+
+    function setWhoami(text) {
+      el("whoami").textContent = text;
+    }
+
+    async function login() {
+      const username = el("adminUser").value.trim();
+      const password = el("adminPass").value;
+      el("authError").textContent = "";
+      const res = await fetch(`${API}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ detail: "Login failed" }));
+        el("authError").textContent = data.detail || "Login failed";
+        return false;
+      }
+      const data = await res.json();
+      state.token = data.access_token;
+      localStorage.setItem("dpi_token", state.token);
+      el("authOverlay").classList.add("hidden");
+      setWhoami(`ADMIN: ${data.username}`);
+      await startApp();
+      return true;
+    }
+
+    async function ensureAuth() {
+      if (!state.token) return false;
+      const res = await fetch(`${API}/auth/me`, { headers: authHeaders() });
+      if (!res.ok) return false;
+      const me = await res.json();
+      setWhoami(`ADMIN: ${me.username}`);
+      return true;
+    }
+
+    async function logout() {
+      if (state.token) {
+        await fetch(`${API}/auth/logout`, { method: "POST", headers: authHeaders() }).catch(() => {});
+      }
+      state.token = "";
+      localStorage.removeItem("dpi_token");
+      if (state.ws) {
+        try { state.ws.close(); } catch (_) {}
+      }
+      setWsStatus(false);
+      setWhoami("LOCKED");
+      el("authOverlay").classList.remove("hidden");
+    }
+
+
+    const el = id => document.getElementById(id);
+    const packetBody = el("packetBody");
+    const chartColors = ["#20ffb0", "#35d4ff", "#ffd166", "#b388ff", "#ff8fab", "#7bd389", "#f4a261", "#8ecae6"];
+
+    function setWsStatus(connected) {
+      const badge = el("wsBadge");
+      badge.textContent = connected ? "LIVE" : "DISCONNECTED";
+      badge.className = "badge " + (connected ? "live" : "disconnected");
+    }
+
+    function setProcessing(active) {
+      el("procDot").className = "dot " + (active ? "live" : "off");
+      el("procState").textContent = active ? "PROCESSING" : "IDLE";
+    }
+
+    function updateCounters(stats) {
+      if (!stats) return;
+      el("totalCount").textContent = stats.total;
+      el("dropCount").textContent = stats.dropped;
+      el("cTotal").textContent = stats.total;
+      el("cForwarded").textContent = stats.forwarded;
+      el("cDropped").textContent = stats.dropped;
+      el("cFlows").textContent = stats.active_flows;
+      el("progressBar").style.width = `${stats.progress || 0}%`;
+      setProcessing(!!stats.processing);
+      if (!stats.processing && stats.total > 0) {
+        el("uploadMsg").textContent = `Processing complete — ${stats.total} packets analyzed`;
+      }
+    }
+
+    function renderPackets() {
+      packetBody.innerHTML = "";
+      const latest = state.packets.slice(-100).reverse();
+      latest.forEach(pkt => {
+        const tr = document.createElement("tr");
+        tr.className = `${pkt.status === "BLOCKED" ? "blocked" : "allowed"} new-row`;
+        tr.innerHTML = `
+          <td>${pkt.id}</td>
+          <td>${new Date(pkt.time).toLocaleTimeString()}</td>
+          <td>${pkt.src_ip}:${pkt.src_port}</td>
+          <td>${pkt.dst_ip}:${pkt.dst_port}</td>
+          <td>${pkt.protocol}</td>
+          <td>${pkt.app}</td>
+          <td>${pkt.sni || "-"}</td>
+          <td>${pkt.country_flag || ""}</td>
+          <td>${pkt.status}</td>`;
+        packetBody.appendChild(tr);
+      });
+    }
+
+    function renderChart(stats) {
+      const wrap = el("chartWrap");
+      const entries = Object.entries(stats?.per_app_percent || {});
+      if (!entries.length) {
+        wrap.textContent = "No app traffic yet.";
+        return;
+      }
+      wrap.innerHTML = "";
+      entries.forEach(([app, detail], i) => {
+        const row = document.createElement("div");
+        row.className = "bar-row";
+        const pct = detail.percent || 0;
+        row.innerHTML = `
+          <div>${app}</div>
+          <div class="bar-bg"><div class="bar-fill" style="background:${chartColors[i % chartColors.length]}; width:${pct}%"></div></div>
+          <div>${pct.toFixed(1)}%</div>`;
+        wrap.appendChild(row);
+      });
+    }
+
+    function renderAlerts(stats) {
+      const wrap = el("alertsWrap");
+      const alerts = stats?.alerts || [];
+      if (!alerts.length) {
+        wrap.textContent = "✅ No anomalies detected";
+        return;
+      }
+      wrap.innerHTML = alerts.slice(-20).reverse().map(a =>
+        `<div class="alert">⚠️ ${a.description}<br/><small>${new Date(a.timestamp).toLocaleString()}</small></div>`
+      ).join("");
+    }
+
+    function renderDomains(stats) {
+      const wrap = el("domainsWrap");
+      const domains = stats?.detected_domains || [];
+      if (!domains.length) {
+        wrap.textContent = "No SNIs/domains detected yet.";
+        return;
+      }
+      wrap.innerHTML = domains.slice(0, 100).map(d =>
+        `<div class="item"><span>${countryToFlag(d.country_code)}</span><span>${d.domain}</span><span class="app-badge">${d.app}</span></div>`
+      ).join("");
+    }
+
+    function countryToFlag(cc) {
+      if (!cc || cc.length !== 2) return "";
+      return String.fromCodePoint(...[...cc.toUpperCase()].map(c => 127397 + c.charCodeAt()));
+    }
+
+    async function fetchStats() {
+      const res = await fetch(`${API}/stats`, { headers: authHeaders() });
+      if (res.status === 401) return logout();
+      const stats = await res.json();
+      state.stats = stats;
+      updateCounters(stats);
+      renderChart(stats);
+      renderAlerts(stats);
+      renderDomains(stats);
+    }
+
+    async function fetchRules() {
+      const res = await fetch(`${API}/rules`, { headers: authHeaders() });
+      if (res.status === 401) return logout();
+      const rules = await res.json();
+      const list = el("ruleList");
+      const all = [
+        ...rules.ip.map(v => ({ type: "ip", value: v })),
+        ...rules.domain.map(v => ({ type: "domain", value: v })),
+        ...rules.app.map(v => ({ type: "app", value: v }))
+      ];
+      list.innerHTML = all.length ? all.map(r =>
+        `<span class="rule-pill">${r.type}:${r.value} <button onclick="removeRule('${r.type}','${r.value}')">x</button></span>`
+      ).join("") : "No active rules";
+    }
+
+    async function addRule() {
+      const type = el("ruleType").value;
+      const value = el("ruleValue").value.trim();
+      if (!value) return;
+      await fetch(`${API}/block`, {
+        method: "POST",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ type, value })
+      });
+      el("ruleValue").value = "";
+      await fetchRules();
+    }
+
+    async function removeRule(type, value) {
+      await fetch(`${API}/block`, {
+        method: "DELETE",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ type, value })
+      });
+      await fetchRules();
+    }
+    window.removeRule = removeRule;
+
+    async function uploadFile(file) {
+      const fd = new FormData();
+      fd.append("file", file);
+      el("uploadMsg").textContent = "Uploading and starting processing...";
+      const res = await fetch(`${API}/upload`, { method: "POST", body: fd, headers: authHeaders() });
+      if (!res.ok) {
+        const err = await res.json();
+        el("uploadMsg").textContent = `Upload failed: ${err.detail || "unknown error"}`;
+        return;
+      }
+      state.packets = [];
+      packetBody.innerHTML = "";
+      await fetchStats();
+    }
+
+    function setupUpload() {
+      if (state.uploadBound) return;
+      const zone = el("dropZone");
+      const input = el("fileInput");
+      el("pickBtn").onclick = () => input.click();
+      zone.onclick = () => input.click();
+      input.onchange = e => { if (e.target.files[0]) uploadFile(e.target.files[0]); };
+      ["dragenter", "dragover"].forEach(name => zone.addEventListener(name, e => {
+        e.preventDefault(); e.stopPropagation(); zone.classList.add("drag");
+      }));
+      ["dragleave", "drop"].forEach(name => zone.addEventListener(name, e => {
+        e.preventDefault(); e.stopPropagation(); zone.classList.remove("drag");
+      }));
+      zone.addEventListener("drop", e => {
+        const file = e.dataTransfer.files[0];
+        if (file) uploadFile(file);
+      });
+      state.uploadBound = true;
+    }
+
+    function connectWs() {
+      if (!state.token) return;
+      const ws = new WebSocket(`ws://localhost:8000/ws?token=${encodeURIComponent(state.token)}`);
+      state.ws = ws;
+      ws.onopen = () => setWsStatus(true);
+      ws.onclose = () => { setWsStatus(false); setTimeout(connectWs, 1200); };
+      ws.onerror = () => setWsStatus(false);
+      ws.onmessage = ev => {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === "packet") {
+          state.packets.push(msg.packet);
+          if (state.packets.length > 1000) state.packets = state.packets.slice(-1000);
+          renderPackets();
+          if (msg.stats) {
+            state.stats = msg.stats;
+            updateCounters(msg.stats);
+            renderChart(msg.stats);
+            renderAlerts(msg.stats);
+            renderDomains(msg.stats);
+          }
+        }
+        if (msg.type === "complete" && msg.stats) {
+          state.stats = msg.stats;
+          updateCounters(msg.stats);
+          renderChart(msg.stats);
+          renderAlerts(msg.stats);
+          renderDomains(msg.stats);
+        }
+      };
+      setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) ws.send("ping");
+      }, 5000);
+    }
+
+    el("loginBtn").onclick = login;
+    el("logoutBtn").onclick = logout;
+    el("adminPass").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+    el("addRuleBtn").onclick = addRule;
+    el("exportBtn").onclick = () => {
+      const a = document.createElement("a");
+      a.href = `${API}/report`;
+      fetch(a.href, { headers: authHeaders() }).then(async res => {
+        if (res.status === 401) {
+          logout();
+          return;
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        a.href = url;
+        a.download = "dpi_report.csv";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      });
+    };
+
+    async function startApp() {
+      setupUpload();
+      connectWs();
+      await fetchStats();
+      await fetchRules();
+    }
+
+    async function init() {
+      if (await ensureAuth()) {
+        el("authOverlay").classList.add("hidden");
+        await startApp();
+      }
+    }
+
+    init();
+    setInterval(() => { if (state.token) fetchStats(); }, 2500);
+    setInterval(() => { if (state.token) fetchRules(); }, 5000);
+  </script>
+</body>
+</html>
