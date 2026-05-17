@@ -141,6 +141,8 @@ async def upload_pcap(file: UploadFile = File(...), _: str = Depends(require_adm
         except asyncio.CancelledError:
             pass
 
+    engine.reset_state()
+
     processing_task = asyncio.create_task(process_upload(str(upload_path)))
     return JSONResponse({"message": "PCAP uploaded and processing started", "filename": file.filename})
 
