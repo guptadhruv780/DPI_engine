@@ -1,3 +1,12 @@
+---
+title: DPI Engine
+emoji: 🚀
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # DPI Engine Python (FastAPI + Scapy)
 
 This project is a Python implementation of a Deep Packet Inspection engine inspired by the C++ Packet Analyzer architecture. It parses PCAP traffic, extracts TLS SNI/HTTP Host, classifies applications, applies blocking rules, detects anomalies, and streams live packet updates to a dashboard using WebSockets.
