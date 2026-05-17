@@ -115,9 +115,12 @@
           Drag and drop .pcap file here or click to choose.
           <input id="fileInput" type="file" accept=".pcap" style="display:none;" />
         </div>
-        <div style="margin-top:10px;">
-          <button id="pickBtn">Choose File</button>
-          <span id="uploadMsg" style="margin-left:8px;color:var(--muted);"></span>
+        <div style="margin-top:10px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <button id="pickBtn">Choose File</button>
+            <span id="uploadMsg" style="margin-left:8px;color:var(--muted);"></span>
+          </div>
+          <a href="/sample" download="trial_sample.pcap" style="color: var(--cyan); text-decoration: none; font-size: 13px; border: 1px solid var(--cyan); padding: 6px 12px; border-radius: 6px; background: rgba(53,212,255,0.1); transition: 0.2s;">📥 Download Trial File</a>
         </div>
         <div class="progress"><div id="progressBar"></div></div>
       </section>

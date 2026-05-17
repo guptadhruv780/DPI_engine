@@ -98,6 +98,14 @@ async def root() -> FileResponse:
     return FileResponse(index_path)
 
 
+@app.get("/sample")
+async def download_sample() -> FileResponse:
+    sample_path = BASE_DIR / "sample.pcap"
+    if not sample_path.exists():
+        raise HTTPException(status_code=404, detail="sample.pcap not found")
+    return FileResponse(sample_path, filename="trial_sample.pcap")
+
+
 @app.post("/auth/login")
 async def login_admin(data: LoginRequest) -> JSONResponse:
     return JSONResponse({"access_token": "dummy_token", "token_type": "bearer", "username": "admin"})
