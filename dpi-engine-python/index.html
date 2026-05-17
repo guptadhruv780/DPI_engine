@@ -95,7 +95,7 @@
   </style>
 </head>
 <body>
-  <div id="authOverlay" class="auth-overlay">
+  <div id="authOverlay" class="auth-overlay hidden">
     <div class="auth-card">
       <h3>IT HEAD ACCESS</h3>
       <p>Admin login required to access DPI dashboard and controls.</p>
@@ -190,7 +190,7 @@
   </div>
 
   <script>
-    const API = "http://localhost:8000";
+    const API = "";
     const state = { packets: [], stats: null, token: localStorage.getItem("dpi_token") || "", ws: null, uploadBound: false };
     function authHeaders(extra = {}) {
       return { ...extra, Authorization: `Bearer ${state.token}` };
@@ -432,7 +432,8 @@
 
     function connectWs() {
       if (!state.token) return;
-      const ws = new WebSocket(`ws://localhost:8000/ws?token=${encodeURIComponent(state.token)}`);
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
       state.ws = ws;
       ws.onopen = () => setWsStatus(true);
       ws.onclose = () => { setWsStatus(false); setTimeout(connectWs, 1200); };
