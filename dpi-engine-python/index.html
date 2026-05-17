@@ -95,27 +95,16 @@
   </style>
 </head>
 <body>
-  <div id="authOverlay" class="auth-overlay hidden">
-    <div class="auth-card">
-      <h3>IT HEAD ACCESS</h3>
-      <p>Admin login required to access DPI dashboard and controls.</p>
-      <div class="auth-field"><input id="adminUser" placeholder="Username" value="ithead" /></div>
-      <div class="auth-field"><input id="adminPass" placeholder="Password" type="password" /></div>
-      <button id="loginBtn">Login</button>
-      <div id="authError" class="auth-error"></div>
-    </div>
-  </div>
 
   <div class="container">
     <div class="header">
       <div class="title">DPI ENGINE</div>
       <div class="header-right">
-        <div id="whoami" class="badge">LOCKED</div>
+        <div id="whoami" class="badge">ADMIN</div>
         <div><span id="procDot" class="dot off"></span><span id="procState">IDLE</span></div>
         <div>Total: <span id="totalCount">0</span></div>
         <div style="color:var(--red)">Dropped: <span id="dropCount">0</span></div>
         <div id="wsBadge" class="badge disconnected">DISCONNECTED</div>
-        <button id="logoutBtn">Logout</button>
       </div>
     </div>
 
@@ -191,61 +180,14 @@
 
   <script>
     const API = "";
-    const state = { packets: [], stats: null, token: localStorage.getItem("dpi_token") || "", ws: null, uploadBound: false };
+    const state = { packets: [], stats: null, ws: null, uploadBound: false };
     function authHeaders(extra = {}) {
-      return { ...extra, Authorization: `Bearer ${state.token}` };
+      return { ...extra };
     }
 
     function setWhoami(text) {
       el("whoami").textContent = text;
     }
-
-    async function login() {
-      const username = el("adminUser").value.trim();
-      const password = el("adminPass").value;
-      el("authError").textContent = "";
-      const res = await fetch(`${API}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({ detail: "Login failed" }));
-        el("authError").textContent = data.detail || "Login failed";
-        return false;
-      }
-      const data = await res.json();
-      state.token = data.access_token;
-      localStorage.setItem("dpi_token", state.token);
-      el("authOverlay").classList.add("hidden");
-      setWhoami(`ADMIN: ${data.username}`);
-      await startApp();
-      return true;
-    }
-
-    async function ensureAuth() {
-      if (!state.token) return false;
-      const res = await fetch(`${API}/auth/me`, { headers: authHeaders() });
-      if (!res.ok) return false;
-      const me = await res.json();
-      setWhoami(`ADMIN: ${me.username}`);
-      return true;
-    }
-
-    async function logout() {
-      if (state.token) {
-        await fetch(`${API}/auth/logout`, { method: "POST", headers: authHeaders() }).catch(() => {});
-      }
-      state.token = "";
-      localStorage.removeItem("dpi_token");
-      if (state.ws) {
-        try { state.ws.close(); } catch (_) {}
-      }
-      setWsStatus(false);
-      setWhoami("LOCKED");
-      el("authOverlay").classList.remove("hidden");
-    }
-
 
     const el = id => document.getElementById(id);
     const packetBody = el("packetBody");
@@ -431,7 +373,6 @@
     }
 
     function connectWs() {
-      if (!state.token) return;
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
       state.ws = ws;
@@ -465,16 +406,13 @@
       }, 5000);
     }
 
-    el("loginBtn").onclick = login;
-    el("logoutBtn").onclick = logout;
-    el("adminPass").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+
     el("addRuleBtn").onclick = addRule;
     el("exportBtn").onclick = () => {
       const a = document.createElement("a");
       a.href = `${API}/report`;
       fetch(a.href, { headers: authHeaders() }).then(async res => {
         if (res.status === 401) {
-          logout();
           return;
         }
         const blob = await res.blob();
@@ -496,15 +434,12 @@
     }
 
     async function init() {
-      if (await ensureAuth()) {
-        el("authOverlay").classList.add("hidden");
-        await startApp();
-      }
+      await startApp();
     }
 
     init();
-    setInterval(() => { if (state.token) fetchStats(); }, 2500);
-    setInterval(() => { if (state.token) fetchRules(); }, 5000);
+    setInterval(() => { fetchStats(); }, 2500);
+    setInterval(() => { fetchRules(); }, 5000);
   </script>
 </body>
 </html>
