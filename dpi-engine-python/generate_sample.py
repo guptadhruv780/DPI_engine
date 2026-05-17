@@ -5,8 +5,16 @@ import time
 
 from scapy.all import DNS, DNSQR, IP, TCP, UDP, Raw, wrpcap  # type: ignore
 
+"""
+Sample PCAP Generator for DPI Engine Testing
+This script generates a realistic-looking PCAP file with various types of traffic
+including HTTP, HTTPS (TLS SNI), and generic UDP packets to test the DPI engine's
+classification capabilities.
+"""
+
 
 def tls_client_hello_with_sni(hostname: str) -> bytes:
+    """Creates a raw TLS ClientHello packet with a specific SNI hostname."""
     host = hostname.encode("utf-8")
     server_name = b"\x00" + len(host).to_bytes(2, "big") + host
     sni_list = len(server_name).to_bytes(2, "big") + server_name
