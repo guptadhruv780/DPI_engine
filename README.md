@@ -6,7 +6,7 @@
 
 ---
 
-## 📖 About The Project.
+## 📖 About The Project
 
 In modern network security, traditional firewalls are often not enough because they only look at IP addresses and port numbers. This **Deep Packet Inspection (DPI) Engine** acts as an advanced network sentry. Instead of just looking at the "envelope" of internet traffic, it opens the envelope and reads the "letter" inside. 
 
